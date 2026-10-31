@@ -261,7 +261,7 @@
       '<div class="brand"><i aria-hidden="true"><b style="height:6px"></b><b style="height:11px"></b><b style="height:16px"></b></i>EF Dashboards</div>' +
       '<button class="nav" data-page="cro"' + (state.page === 'cro' ? ' aria-current="page"' : '') + '>CRO Dashboard</button>' +
       '<button class="nav" data-page="program"' + (state.page === 'program' ? ' aria-current="page"' : '') + '>Program Metrics</button>' +
-      '<div class="foot">Updated ' + esc(stamp) + '<br><button id="refresh">Refresh now</button> \u00b7 <button id="logout">Lock</button></div>' +
+      '<div class="foot">Updated ' + esc(stamp) + '<br><button id="refresh">Refresh now</button>' + (linkKey ? '' : ' \u00b7 <button id="logout">Lock</button>') + '</div>' +
       '</nav><main><div class="top"><h1>' + esc(title) + '</h1><span class="q">' + esc(question) + '</span><div class="right">' + controls + '</div></div>' + body + '</main></div>';
   }
 
@@ -394,7 +394,10 @@
   }
 
   // ---------- start ----------
-  var saved = getStored();
+  // The HighLevel menu link carries the key as ?k=..., so staff never type a passcode.
+  var linkKey = null;
+  try { linkKey = new URLSearchParams(location.search).get('k'); } catch (e) {}
+  var saved = linkKey || getStored();
   if (saved) {
     fetchData(saved).then(function (d) { state.pass = saved; state.data = d; render(); })
       .catch(function (err) { if (/bad_passcode/.test(String(err && err.message || err))) clearStored(); renderLock(); });
