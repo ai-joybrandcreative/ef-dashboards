@@ -76,6 +76,7 @@
   .list li:last-child { border-bottom: 0; }
   .muted { color: var(--muted); }
   .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .kpis.three { grid-template-columns: repeat(3, 1fr); }
   .kpi { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
   .kpi .label { font-size: 13px; color: var(--mauve); font-weight: 600; min-height: 38px; }
   .kpi .value { font-family: var(--heading); font-size: 46px; font-weight: 400; line-height: 1.1; margin: 10px 0 4px; }
@@ -95,7 +96,7 @@
     .brand { margin: 0 10px 0 0; font-size: 15px; }
     .side .foot { display: none; }
     main { padding: 16px; }
-    .grid2, .kpis, .tgroups { grid-template-columns: 1fr; }
+    .grid2, .kpis, .kpis.three, .tgroups { grid-template-columns: 1fr; }
   }
 </style>
 </head>
@@ -368,24 +369,58 @@
   }
 
   function renderProgram() {
+    var card = function (label, value, note) { return '<div class="kpi"><div class="label">' + esc(label) + '</div><div class="value">' + esc(value == null ? '\u2013' : value) + '</div><div class="note">' + esc(note || '') + '</div></div>'; };
     var p = state.data.program || {};
-    var body;
+    var kpiBlock;
     if (p.error) {
       var why = p.error === 'not_shared' || p.error === 'no_token'
         ? 'Waiting on access to the Headline KPIs table in Notion. Once it\u2019s shared with the dashboard, these numbers show up here on their own.'
         : 'Couldn\u2019t read the Headline KPIs table in Notion right now (' + esc(p.error) + '). Try Refresh in a few minutes.';
-      body = '<div class="card"><div class="notice">' + why + '</div></div>';
+      kpiBlock = '<div class="card"><h2>First 90 days</h2><div class="notice">' + why + '</div></div>';
     } else {
-      var card = function (label, value, note) { return '<div class="kpi"><div class="label">' + esc(label) + '</div><div class="value">' + esc(value == null ? '\u2013' : value) + '</div><div class="note">' + esc(note || '') + '</div></div>'; };
-      body = '<div class="kpis">' +
+      kpiBlock = '<div class="card"><h2>First 90 days</h2><div class="kpis">' +
         card('Engaged students who signed a client within 90 days', p.signedIn90) +
         (function () { var m = String(p.engagementRate || '').match(/^(.*?)\s*\((.*)\)\s*$/); return m ? card('Program engagement rate', m[1], m[2] + ' students engaged') : card('Program engagement rate', p.engagementRate); })() +
         card('Average revenue in the first 90 days', p.avg90 == null ? null : money(p.avg90)) +
         card('Median revenue in the first 90 days', p.median90 == null ? null : money(p.median90)) +
         '</div><p class="muted" style="margin-top:14px">Students who joined March 1, 2026 or later. From Jennifer\u2019s Headline KPIs table in Notion' +
-        (p.lastUpdated ? ', last updated ' + esc(fmtDate(p.lastUpdated)) : '') + '.</p>';
+        (p.lastUpdated ? ', last updated ' + esc(fmtDate(p.lastUpdated)) : '') + '.</p></div>';
     }
-    return shell('Program Metrics', 'How are students doing in their first 90 days?', '<span class="pill">From Notion</span>', body);
+    return shell('Program Metrics', 'How are students doing, and are they showing up?', '<span class="pill">From Notion</span>', kpiBlock + renderEngagement(card));
+  }
+
+  function renderEngagement(card) {
+    var e = state.data.engagement || {};
+    var head = '<h2>Monthly engagement</h2>';
+    if (e.error) {
+      var why = e.error === 'not_shared' || e.error === 'no_token'
+        ? 'Waiting on access to the Program Pulse page in Notion. Once it\u2019s shared with the dashboard, the monthly engagement numbers show up here on their own.'
+        : 'Couldn\u2019t read the Engagement Pulse table in Notion right now (' + esc(e.error) + '). Try Refresh in a few minutes.';
+      return '<div class="card" style="margin-top:16px">' + head + '<div class="notice">' + why + '</div></div>';
+    }
+    var months = e.months || [];
+    if (!months.length) return '<div class="card" style="margin-top:16px">' + head + '<div class="notice">No months in the Engagement Pulse table yet.</div></div>';
+    var label = function (m) { return m.month + (m.year && String(m.month).indexOf(String(m.year)) < 0 ? ' ' + m.year : ''); };
+    var last = months[months.length - 1], prev = months.length > 1 ? months[months.length - 2] : null;
+    var change = function (k) {
+      if (!prev || last[k] == null || prev[k] == null) return '';
+      var d = (last[k] - prev[k]) * 100;
+      if (Math.abs(d) < 0.05) return 'Same as ' + prev.month;
+      return (d > 0 ? 'Up ' : 'Down ') + Math.abs(d).toFixed(1) + ' points from ' + prev.month;
+    };
+    var cards = '<div class="kpis three">' +
+      card('Overall engagement rate', pct(last.overall), change('overall')) +
+      card('Community engagement (Skool)', pct(last.community), change('community')) +
+      card('Coaching call rate', pct(last.callRate), (last.studentsAtCalls != null && last.currentStudents != null ? n0(last.studentsAtCalls) + ' of ' + n0(last.currentStudents) + ' current students' : change('callRate'))) +
+      '</div>';
+    var rows = months.slice().reverse().map(function (m) {
+      return '<tr><td>' + esc(label(m)) + (m.status === 'Partial' ? ' <span class="muted">(partial)</span>' : '') + '</td><td>' + pct(m.overall) + '</td><td>' + pct(m.community) + '</td><td>' + pct(m.callRate) + '</td><td>' + n0(m.studentsAtCalls) + '</td><td>' + n0(m.currentStudents) + '</td></tr>';
+    }).join('');
+    var table = '<div class="scroll" style="margin-top:16px"><table><thead><tr><th>Month</th><th>Overall</th><th>Community</th><th>Coaching calls</th><th>Students at a call</th><th>Current students</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    return '<div class="card" style="margin-top:16px">' + head +
+      '<p class="sub">' + esc(label(last)) + (last.status === 'Partial' ? ' (month still in progress)' : '') + '. Overall = 70% community engagement + 30% coaching call rate.</p>' +
+      cards + table +
+      '<p class="muted" style="margin-top:14px">From the Engagement Pulse table on Jennifer\u2019s Program Pulse page in Notion. Updated monthly.</p></div>';
   }
 
   function render() {
