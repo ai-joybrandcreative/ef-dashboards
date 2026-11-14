@@ -418,7 +418,7 @@
     }).join('');
     var table = '<div class="scroll" style="margin-top:16px"><table><thead><tr><th>Month</th><th>Overall</th><th>Community</th><th>Coaching calls</th><th>Students at a call</th><th>Current students</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
     return '<div class="card" style="margin-top:16px">' + head +
-      '<p class="sub">' + esc(label(last)) + (last.status === 'Partial' ? ' (month still in progress)' : '') + '. Overall = 70% community engagement + 30% coaching call rate.</p>' +
+      '<p class="sub">' + esc(label(last)) + (last.status === 'Partial' ? ' (month still in progress)' : '') + '. The overall rate blends community engagement and the coaching call rate, using the weights set in Notion.</p>' +
       cards + table +
       '<p class="muted" style="margin-top:14px">From the Engagement Pulse table on Jennifer\u2019s Program Pulse page in Notion. Updated monthly.</p></div>';
   }
