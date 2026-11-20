@@ -380,7 +380,6 @@
     } else {
       kpiBlock = '<div class="card"><h2>First 90 days</h2><div class="kpis">' +
         card('Engaged students who signed a client within 90 days', p.signedIn90) +
-        (function () { var m = String(p.engagementRate || '').match(/^(.*?)\s*\((.*)\)\s*$/); return m ? card('Program engagement rate', m[1], m[2] + ' students engaged') : card('Program engagement rate', p.engagementRate); })() +
         card('Average revenue in the first 90 days', p.avg90 == null ? null : money(p.avg90)) +
         card('Median revenue in the first 90 days', p.median90 == null ? null : money(p.median90)) +
         '</div><p class="muted" style="margin-top:14px">Students who joined March 1, 2026 or later. From Jennifer\u2019s Headline KPIs table in Notion' +
